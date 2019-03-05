@@ -59,9 +59,9 @@ public class ClassDiagram implements Supplier<String> {
         
 
         Stream<String> stream = classes
-            .map( ClassDeclaration::new )
-            .flatMap( cls -> cls.stream() )
-            .map( element -> element.get() );
+            .map(ClassDeclaration::new)
+            .flatMap(cls -> Stream.concat(Stream.of(cls), cls.children()))
+            .map(element -> element.get());
         
         System.out.println(
             Stream.concat(

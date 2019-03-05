@@ -38,18 +38,18 @@ public class Main2 {
         LintProject project = new LintProject(jars, rootFolders); 
         
         Map<String, Node> map = project
-                .compilationUnits()
-                .collect(
-                    Collectors.toMap(
-                        node -> ((CompilationUnit) node).getPackageDeclaration().get().getNameAsString() + "." + ((CompilationUnit) node)
-                                .getTypes()
-                                .stream()
-                                .filter(n -> n.getModifiers().contains(Modifier.publicModifier()))
-                                .map( x -> x.getName() )
-                                .findFirst().get().toString(),
-                        node -> node
-                    )
-                );
+            .compilationUnits()
+            .collect(
+                Collectors.toMap(
+                    node -> ((CompilationUnit) node).getPackageDeclaration().get().getNameAsString() + "." + ((CompilationUnit) node)
+                        .getTypes()
+                        .stream()
+                        .filter(n -> n.getModifiers().contains(Modifier.publicModifier()))
+                        .map( x -> x.getName() )
+                            .findFirst().get().toString(),
+                    node -> node
+                )
+            );
 
         VoidVisitor<Void> visitor = new VoidVisitorAdapter<Void>() {
             @Override

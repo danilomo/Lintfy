@@ -12,7 +12,7 @@ public interface UMLElement extends Supplier<String>{
         return Stream.of();
     }
     
-    default Stream<UMLElement> stream(){
-        return Stream.concat(Stream.of(this), children());
-    }
+//    default Stream<UMLElement> stream(){
+//        return Stream.concat(Stream.of(this), children());
+//    }
 }

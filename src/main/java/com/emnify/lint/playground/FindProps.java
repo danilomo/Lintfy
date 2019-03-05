@@ -1,24 +1,22 @@
 package com.emnify.lint.playground;
 
 import com.emnify.lint.LintProject;
-import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import com.github.javaparser.resolution.SymbolResolver;
-import com.github.javaparser.resolution.declarations.ResolvedTypeDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
-import com.github.javaparser.symbolsolver.core.resolution.Context;
-import com.github.javaparser.symbolsolver.javaparsermodel.contexts.CompilationUnitContext;
-import com.github.javaparser.symbolsolver.model.resolution.SymbolReference;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  *
@@ -43,99 +41,86 @@ public class FindProps {
         );
 
         LintProject project = new LintProject(jars, rootFolders);
-
-        Map<String, Node> map = project
-                .compilationUnits()
-                .collect(
-                        Collectors.toMap(
-                                node -> ((CompilationUnit) node).getPackageDeclaration().get().getNameAsString() + "." + ((CompilationUnit) node)
-                                .getTypes()
-                                .stream()
-                                .filter(n -> n.getModifiers().contains(Modifier.publicModifier()))
-                                .map(x -> x.getName())
-                                .findFirst().get().toString(),
-                                node -> node
-                        )
-                );
-
-        final SymbolReference<ResolvedTypeDeclaration> props = props(project);
-        final SymbolReference<ResolvedTypeDeclaration> actorSystem = actorSystem(project);
-
-        VoidVisitor<Void> visitor = new VoidVisitorAdapter<Void>() {
+        
+        Stream<ClassOrInterfaceDeclaration> classes = project.compilationUnits()
+            .map( cu -> (CompilationUnit) cu)
+            .flatMap(cu -> cu.getTypes().stream())
+            .filter(cls -> cls instanceof ClassOrInterfaceDeclaration)
+            .filter(cls -> cls.getModifiers().contains(Modifier.publicModifier()))
+            .map(cls -> (ClassOrInterfaceDeclaration) cls);
+        
+        Map<String, ClassOrInterfaceDeclaration> map = classes
+            .collect(
+                Collectors.toMap(
+                    cls -> getPackageName(cls) + "." + cls.getName(),
+                    cls -> cls
+                )
+            );
+        
+        VoidVisitor<List<MethodCallExpr>> visitor = new VoidVisitorAdapter<List<MethodCallExpr>>() {            
+            private final TypeChecker checker = new TypeChecker(
+                Arrays.asList("akka.actor.Props"),
+                project.typeSolver()
+            );           
             @Override
-            public void visit(MethodCallExpr expr, Void arg) {
+            public void visit(MethodCallExpr expr, List<MethodCallExpr> arg) {
                 super.visit(expr, arg);
 
                 if (expr.getNameAsString().equals("create")) {
                     try {
                         Expression scope = expr.getScope().get();
-                        ResolvedType type = scope.calculateResolvedType();
-                        System.out.println(expr);
-                        System.out.println(props);
-                        System.out.println(actorSystem);
-                        System.out.println(">>>" + type);
-
-                        try {
-                            System.out.println(">>> props " + props.getCorrespondingDeclaration().asReferenceType().isAssignableBy(type));
-                        } catch (Exception ex) {
+                        
+                        if(checker.test("akka.actor.Props", scope)){
+                            arg.add(expr);
                         }
-
-                        try {
-                            System.out.println(">>> as " + actorSystem.getCorrespondingDeclaration().asReferenceType().isAssignableBy(type));
-                        } catch (Exception ex) {
-                        }
-
-                        System.out.println("");
-
-                    } catch (Exception ex) {
-//                        System.out.println("pq parouuu " + expr);                        
-//                        System.out.println(expr.findCompilationUnit());
-                    }
+                    } catch (Exception ex) {}
                 }
             }
         };
 
-        map.values().forEach(cu -> {
-            visitor.visit((CompilationUnit) cu, null);
+        List<MethodCallExpr> propCreateExprs = new ArrayList<>();
+        
+        map.values().forEach(cls -> {
+            visitor.visit(cls, propCreateExprs);
+        });      
+
+        propCreateExprs.forEach( expr -> {
+            PropsCreate props = new PropsCreate(expr);
+            ResolvedType type = props.actorClass();
+            String typeName = type.describe();
+            ClassOrInterfaceDeclaration cls = (ClassOrInterfaceDeclaration)
+                    map.get(typeName);                        
+            
+            MatchAnyConstructor predicate = new MatchAnyConstructor(cls);
+            
+            if(! predicate.test(props.arguments())){
+                System.out.println("Props that doesn't match a constructor: ");
+                System.out.println(expr);
+                System.out.println("At: " 
+                        + getPackageName(expr.findCompilationUnit().get())
+                        + "."
+                        + expr
+                            .findCompilationUnit()
+                            .get()
+                            .getPrimaryType()
+                            .get()
+                            .getNameAsExpression()
+                        + ", line "
+                        
+                        + expr.getRange().get().begin.line);
+                
+                System.out.println("");
+            }            
         });
-
+    }
+    
+    private static String getPackageName(Node cu){
+        return cu
+            .findCompilationUnit()
+            .get()
+            .getPackageDeclaration()
+            .get()
+            .getNameAsString();
     }
 
-    private static SymbolReference<ResolvedTypeDeclaration> props(LintProject project) {
-        SymbolResolver resolver = project.symbolResolver();
-
-        JavaParser parser = new JavaParser();
-        parser.getParserConfiguration().setSymbolResolver(resolver);
-
-        String code = "import akka.actor.Props;";
-
-        Context cont = new CompilationUnitContext(
-                parser
-                        .parse(code)
-                        .getResult()
-                        .get(),
-                project.typeSolver()
-        );
-
-        return cont.solveType("Props");
-    }
-
-    private static SymbolReference<ResolvedTypeDeclaration> actorSystem(LintProject project) {
-        SymbolResolver resolver = project.symbolResolver();
-
-        JavaParser parser = new JavaParser();
-        parser.getParserConfiguration().setSymbolResolver(resolver);
-
-        String code = "import akka.actor.ActorSystem;";
-
-        Context cont = new CompilationUnitContext(
-                parser
-                        .parse(code)
-                        .getResult()
-                        .get(),
-                project.typeSolver()
-        );
-
-        return cont.solveType("ActorSystem");
-    }
 }
