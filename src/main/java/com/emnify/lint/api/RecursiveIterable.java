@@ -6,9 +6,8 @@ import java.util.Iterator;
 import java.util.function.Function;
 
 /**
- *
- * @author Danilo Oliveira
  * @param <T>
+ * @author Danilo Oliveira
  */
 public class RecursiveIterable<T> implements Iterable<T> {
 

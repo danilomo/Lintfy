@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- *
  * @author Danilo Oliveira
  */
 public class FolderIterable implements Iterable<File> {
@@ -22,6 +21,12 @@ public class FolderIterable implements Iterable<File> {
     public FolderIterable(File rootFolder, Predicate<File> predicate) {
         this.rootFolder = rootFolder;
         this.predicate = predicate;
+    }
+
+    public static void main(String[] args) {
+        for (File f : new FolderIterable(new File("src/test/test-sources/"))) {
+            System.out.println(f);
+        }
     }
 
     @Override
@@ -44,25 +49,19 @@ public class FolderIterable implements Iterable<File> {
         @Override
         public Iterable<File> children() {
             List<File> files = new ArrayList<>();
-            
-            for(File f: file.listFiles()){
-                if(predicate.test(f)){
+
+            for (File f : file.listFiles()) {
+                if (predicate.test(f)) {
                     files.add(f);
                 }
             }
-            
+
             return files;
         }
 
         @Override
         public File element() {
             return file;
-        }
-    }
-
-    public static void main(String[] args) {
-        for (File f : new FolderIterable(new File("src/test/test-sources/"))) {
-            System.out.println(f);
         }
     }
 

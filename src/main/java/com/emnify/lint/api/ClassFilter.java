@@ -4,12 +4,11 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- *
- * @author danilo
  * @param <T>
  * @param <K>
+ * @author danilo
  */
-public class ClassFilter<T, K> implements Function<Stream<T>,Stream<K>> {
+public class ClassFilter<T, K> implements Function<Stream<T>, Stream<K>> {
     private final Class<K> clazz;
 
     public ClassFilter(Class<K> clazz) {
@@ -19,7 +18,7 @@ public class ClassFilter<T, K> implements Function<Stream<T>,Stream<K>> {
     @Override
     public Stream<K> apply(Stream<T> stream) {
         return stream
-            .filter( element -> element.getClass().isAssignableFrom(clazz))
+            .filter(element -> element.getClass().isAssignableFrom(clazz))
             .map(element -> (K) element);
     }
 }

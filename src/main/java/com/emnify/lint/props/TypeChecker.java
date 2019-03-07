@@ -3,31 +3,25 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.emnify.lint.playground;
+package com.emnify.lint.props;
 
 import com.github.javaparser.JavaParser;
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.resolution.SymbolResolver;
-import com.github.javaparser.resolution.declarations.ResolvedDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
-import com.github.javaparser.resolution.declarations.ResolvedTypeDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.core.resolution.Context;
 import com.github.javaparser.symbolsolver.javaparsermodel.contexts.CompilationUnitContext;
-import com.github.javaparser.symbolsolver.model.resolution.SymbolReference;
 import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
+
 import java.util.List;
 import java.util.function.BiPredicate;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
- *
  * @author danilo
  */
-public class TypeChecker implements BiPredicate<String, Expression>{
+public class TypeChecker implements BiPredicate<String, Expression> {
     private final List<String> types;
     private final TypeSolver solver;
     private final Context context;
@@ -35,10 +29,10 @@ public class TypeChecker implements BiPredicate<String, Expression>{
     public TypeChecker(List<String> types, TypeSolver solver) {
         this.types = types;
         this.solver = solver;
-        this.context = initContext();        
+        this.context = initContext();
     }
-    
-    private Context initContext(){
+
+    private Context initContext() {
         JavaParser parser = new JavaParser();
         parser.getParserConfiguration()
             .setSymbolResolver(new JavaSymbolSolver(solver));
@@ -58,17 +52,17 @@ public class TypeChecker implements BiPredicate<String, Expression>{
 
     @Override
     public boolean test(String type, Expression expr) {
-        try{
+        try {
             ResolvedType exprType = expr.calculateResolvedType();
             ResolvedReferenceTypeDeclaration checkingType = context
-                    .solveType(type)
-                    .getCorrespondingDeclaration()
-                    .asReferenceType();
-            
+                .solveType(type)
+                .getCorrespondingDeclaration()
+                .asReferenceType();
+
             return checkingType.isAssignableBy(exprType);
-        }catch(Exception ex){
+        } catch (Exception ex) {
             return false;
         }
-    }    
-    
+    }
+
 }

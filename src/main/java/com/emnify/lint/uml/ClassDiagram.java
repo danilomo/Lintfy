@@ -4,6 +4,7 @@ import com.emnify.lint.LintProject;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
@@ -13,7 +14,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- *
  * @author Danilo Oliveira
  */
 public class ClassDiagram implements Supplier<String> {
@@ -22,11 +22,6 @@ public class ClassDiagram implements Supplier<String> {
 
     public ClassDiagram(LintProject project) {
         this.project = project;
-    }
-
-    @Override
-    public String get() {
-        return "";
     }
 
     public static void main(String[] args) {
@@ -46,43 +41,47 @@ public class ClassDiagram implements Supplier<String> {
         );
 
         LintProject project = new LintProject(jars, rootFolders);
-        
+
         Stream<CompilationUnit> cus = project
-                .compilationUnits()
-                .map(n -> (CompilationUnit) n);
-        
+            .compilationUnits()
+            .map(n -> (CompilationUnit) n);
+
         Stream<ClassOrInterfaceDeclaration> classes = cus
             .flatMap(cu -> cu.getTypes().stream())
             .filter(cls -> cls instanceof ClassOrInterfaceDeclaration)
             .filter(cls -> cls.getModifiers().contains(Modifier.publicModifier()))
             .map(cls -> (ClassOrInterfaceDeclaration) cls);
-        
+
 
         Stream<String> stream = classes
             .map(ClassDeclaration::new)
             .flatMap(cls -> Stream.concat(Stream.of(cls), cls.children()))
             .map(element -> element.get());
-        
+
         System.out.println(
             Stream.concat(
                 Stream.of("@startuml"),
                 Stream.concat(stream, Stream.of("@enduml"))
             ).collect(Collectors.joining("\n\n"))
-        );        
+        );
     }
-    
-    private static class NameFromType implements Function<ClassOrInterfaceDeclaration, String>{
+
+    @Override
+    public String get() {
+        return "";
+    }
+
+    private static class NameFromType implements Function<ClassOrInterfaceDeclaration, String> {
         @Override
         public String apply(ClassOrInterfaceDeclaration type) {
             Optional<String> pkgName = type
-                    .findCompilationUnit()
-                    .flatMap( cu -> cu.getPackageDeclaration() )
-                    .map( pkg -> pkg.getNameAsString() );
-            
+                .findCompilationUnit()
+                .flatMap(cu -> cu.getPackageDeclaration())
+                .map(pkg -> pkg.getNameAsString());
+
             return pkgName.orElse("default") + "." + type.getNameAsString();
         }
     }
-    
 
 
 }

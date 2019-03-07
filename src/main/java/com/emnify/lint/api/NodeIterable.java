@@ -1,10 +1,10 @@
 package com.emnify.lint.api;
 
 import com.github.javaparser.ast.Node;
+
 import java.util.Iterator;
 
 /**
- *
  * @author danilo
  */
 public class NodeIterable implements Iterable<Node> {
