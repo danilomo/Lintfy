@@ -1,24 +1,95 @@
 package com.emnify.lint.maven;
 
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
-
 import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.Parent;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 
 public abstract class MavenArtifact {
   private static final String HOME_FOLDER = System.getProperty("user.home");
 
-  public abstract String getGroupId();
+    public static MavenArtifact fromModel(Model model) {
+        return new MavenArtifact() {
+            @Override
+            public String groupId() {
+                return model.getGroupId();
+            }
 
-  public abstract String getArtifactId();
+            @Override
+            public String artifactId() {
+                return model.getArtifactId();
+            }
 
-  public abstract String getVersion();
+            @Override
+            public String version() {
+                return model.getVersion();
+            }
+
+            @Override
+            public List<MavenArtifact> dependencies() {
+                List<MavenArtifact> result = model.getDependencies()
+                    .stream()
+                    .map(MavenArtifact::fromDependency)
+                    .collect(Collectors.toList());
+                parent().ifPresent(
+                    parent -> result.addAll(parent.dependencies())
+                );
+                return result;
+            }
+
+            @Override
+            public Optional<MavenArtifact> parent() {
+                return Optional.ofNullable(
+                    model.getParent()
+                ).map(MavenArtifact::fromParent);
+            }
+        };
+    }
+
+    public static MavenArtifact fromDependency(Dependency dependency) {
+        return new MavenArtifact() {
+            @Override
+            public String groupId() {
+                return dependency.getGroupId();
+            }
+
+            @Override
+            public String artifactId() {
+                return dependency.getArtifactId();
+            }
+
+            @Override
+            public String version() {
+                return dependency.getVersion();
+            }
+        };
+    }
+
+    public static MavenArtifact fromParent(Parent parent) {
+        return new MavenArtifact() {
+            @Override
+            public String groupId() {
+                return parent.getGroupId();
+            }
+
+            @Override
+            public String artifactId() {
+                return parent.getArtifactId();
+            }
+
+            @Override
+            public String version() {
+                return parent.getVersion();
+            }
+        };
+    }
 
   public String jarPath(){
     return String.join(
@@ -36,104 +107,77 @@ public abstract class MavenArtifact {
     );
   }
 
-  private String baseFolder() {
+    public abstract String groupId();
+
+    public abstract String artifactId();
+
+    public abstract String version();
+
+    public List<MavenArtifact> dependencies() {
+        try {
+            Model model = modelFrom(pomPath());
+            return model.getDependencies()
+                .stream()
+                .map(MavenArtifact::fromDependency)
+                .collect(Collectors.toList());
+        } catch (Exception ex) {
+            return new ArrayList<>();
+        }
+    }
+
+    private String baseFolder() {
     return String.join(
         "/",
         HOME_FOLDER,
         ".m2/repository",
-        getGroupId().replace(".", "/"),
-        getArtifactId(),
-        getVersion()
+        groupId().replace(".", "/"),
+        artifactId(),
+        version()
     );
   }
 
   private String  jarFileName() {
-    return getArtifactId() + "-" + getVersion() + ".jar";
+      return artifactId() + "-" + version() + ".jar";
   }
 
   private String pomName() {
-    return getArtifactId() + "-" + getVersion() + ".pom";
+      return artifactId() + "-" + version() + ".pom";
   }
 
-  public List<MavenArtifact> dependencies(){
+    private Model modelFrom(String fileName) {
     try {
-      Model model = modelFrom(pomPath());
-      return model.getDependencies()
-          .stream()
-          .map(MavenArtifact::fromDependency)
-          .collect(Collectors.toList());
+        MavenXpp3Reader reader = new MavenXpp3Reader();
+        return reader.read(new FileInputStream(fileName));
     }catch(Exception ex){
-      return new ArrayList<>();
+        throw new RuntimeException("Error!");
     }
   }
 
-  public List<MavenArtifact> transientDependencies(){
+    public Optional<MavenArtifact> parent() {
+        return Optional.empty();
+    }
+
+    public List<MavenArtifact> transientDependencies() {
     Map<String, MavenArtifact> map = new HashMap<>();
     findTransientDependencies(this, map);
     return new ArrayList<>(map.values());
   }
 
-  private void findTransientDependencies(MavenArtifact artifact, Map<String, MavenArtifact> map){
+  private void findTransientDependencies(MavenArtifact artifact, Map<String,
+      MavenArtifact> map){
     for(MavenArtifact dependency: artifact.dependencies()){
-      if(!map.containsKey(dependency.getArtifactId())){
-        map.put(dependency.getArtifactId(), dependency);
+        if (!map.containsKey(dependency.artifactId())) {
+            map.put(dependency.artifactId(), dependency);
         findTransientDependencies(dependency, map);
       }
     }
   }
 
-  private Model modelFrom(String fileName){
-    try {
-      MavenXpp3Reader reader = new MavenXpp3Reader();
-      return reader.read(new FileInputStream(fileName));
-    }catch(Exception ex){
-      throw new RuntimeException("Error!");
+    @Override
+    public String toString() {
+        return "MavenArtifact[" +
+            groupId() + ", " +
+            artifactId() + ", " +
+            version() + "]";
     }
-  }
-
-  public static MavenArtifact fromModel(Model model){
-    return new MavenArtifact() {
-      @Override
-      public String getGroupId() {
-        return model.getGroupId();
-      }
-
-      @Override
-      public String getArtifactId() {
-        return model.getArtifactId();
-      }
-
-      @Override
-      public String getVersion() {
-        return model.getVersion();
-      }
-
-      @Override
-      public List<MavenArtifact> dependencies() {
-        return model.getDependencies()
-            .stream()
-            .map(MavenArtifact::fromDependency)
-            .collect(Collectors.toList());
-      }
-    };
-  }
-
-  public static MavenArtifact fromDependency(Dependency dependency){
-    return new MavenArtifact() {
-      @Override
-      public String getGroupId() {
-        return dependency.getGroupId();
-      }
-
-      @Override
-      public String getArtifactId() {
-        return dependency.getArtifactId();
-      }
-
-      @Override
-      public String getVersion() {
-        return dependency.getVersion();
-      }
-    };
-  }
 }

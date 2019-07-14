@@ -24,7 +24,7 @@ public class FolderIterable implements Iterable<File> {
     }
 
     public static void main(String[] args) {
-        for (File f : new FolderIterable(new File("src/test/test-sources/"))) {
+        for (File f : new FolderIterable(new File("src/"))) {
             System.out.println(f);
         }
     }

@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.emnify.lint.props;
+package com.emnify.lint.akka;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.expr.Expression;
@@ -13,7 +13,6 @@ import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.core.resolution.Context;
 import com.github.javaparser.symbolsolver.javaparsermodel.contexts.CompilationUnitContext;
 import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
-
 import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;

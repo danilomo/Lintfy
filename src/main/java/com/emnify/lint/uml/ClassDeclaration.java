@@ -1,7 +1,6 @@
 package com.emnify.lint.uml;
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 

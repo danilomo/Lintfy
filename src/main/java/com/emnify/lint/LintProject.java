@@ -2,6 +2,8 @@ package com.emnify.lint;
 
 import com.emnify.lint.api.JavaPackageSupplier;
 import com.emnify.lint.api.NodeStream;
+import com.emnify.lint.maven.MavenProject;
+import com.emnify.lint.maven.MavenTypeSolver;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Node;
@@ -9,16 +11,11 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.resolution.SymbolResolver;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
-
 import java.io.File;
 import java.io.FilenameFilter;
-import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -28,48 +25,35 @@ import java.util.stream.Stream;
  */
 public class LintProject {
 
-    private final Collection<String> jars;
-    private final Collection<String> rootFolders;
+    private final String rootFolder;
+    private final TypeSolver solver;
 
-    public LintProject(Collection<String> jars, Collection<String> rootFolders) {
-        this.jars = jars;
-        this.rootFolders = rootFolders;
+    public LintProject(String rootFolder, TypeSolver solver) {
+        this.rootFolder = rootFolder;
+        this.solver = solver;
     }
 
-    private static String getPackageName(Node cu) {
+    public LintProject(MavenProject project) {
+        this(
+            project.sourceFolder(),
+            new MavenTypeSolver(project)
+        );
+    }
+
+    private static Optional<String> getPackageName(Node cu) {
         return cu
             .findCompilationUnit()
-            .get()
-            .getPackageDeclaration()
-            .get()
-            .getNameAsString();
+            .flatMap(CompilationUnit::getPackageDeclaration)
+            .flatMap(pkg -> Optional.of(pkg.getNameAsString()));
     }
 
     private Stream<File> javaPackages() {
-        return rootFolders.stream()
+        return Stream.of(rootFolder)
             .flatMap(f -> new JavaPackageSupplier(f).get());
-    }
-
-    private Stream<TypeSolver> typeSolvers() {
-        Stream<TypeSolver> jarSolvers = jars
-            .stream()
-            .flatMap(jar -> solverFromJarPath(jar));
-
-        return jarSolvers;
-    }
-
-    private Stream<TypeSolver> solverFromJarPath(String path) {
-        try {
-            TypeSolver solver = JarTypeSolver.getJarTypeSolver(path);
-            return Stream.of(solver);
-        } catch (IOException ex) {
-            return Stream.of();
-        }
     }
 
     public Stream<Node> compilationUnits() {
         FilenameFilter filter = JavaPackageSupplier.FILTER;
-
         Supplier<Stream<File>> sourceFiles = () -> javaPackages()
             .flatMap(
                 folder -> Arrays.asList(folder.list(filter))
@@ -85,18 +69,11 @@ public class LintProject {
     }
 
     public SymbolResolver symbolResolver() {
-        TypeSolver typeSolver = typeSolver();
-        return new JavaSymbolSolver(typeSolver);
+        return new JavaSymbolSolver(solver);
     }
 
     public TypeSolver typeSolver() {
-        Stream<TypeSolver> solvers = typeSolvers();
-        TypeSolver[] array = solvers.toArray(TypeSolver[]::new);
-        TypeSolver typeSolver = new CombinedTypeSolver(
-            new ReflectionTypeSolver(),
-            new CombinedTypeSolver(array)
-        );
-        return typeSolver;
+        return solver;
     }
 
     public Map<String, ClassOrInterfaceDeclaration> publicClasses() {
@@ -110,7 +87,9 @@ public class LintProject {
         return classes
             .collect(
                 Collectors.toMap(
-                    cls -> getPackageName(cls) + "." + cls.getName(),
+                    cls -> getPackageName(cls)
+                        .map(pkg -> pkg + ".")
+                        .orElse("") + cls.getName(),
                     cls -> cls
                 )
             );

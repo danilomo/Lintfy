@@ -1,10 +1,9 @@
-package com.emnify.lint.fsm;
+package com.emnify.lint.akka;
 
 import com.emnify.lint.LintProject;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -27,8 +26,7 @@ public class FSM {
         Collection<String> rootFolders = Arrays.asList(
             "/home/danilo/Workspace/ESC/esc-recovery-test/src/main"
         );
-
-        LintProject project = new LintProject(jars, rootFolders);
+        LintProject project = new LintProject(null);
 
         ClassOrInterfaceDeclaration fsm = project
             .publicClasses()

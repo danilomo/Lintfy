@@ -3,13 +3,12 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.emnify.lint.props;
+package com.emnify.lint.akka;
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.resolution.types.ResolvedType;
-
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;

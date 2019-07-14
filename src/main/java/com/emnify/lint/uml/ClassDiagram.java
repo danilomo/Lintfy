@@ -4,7 +4,6 @@ import com.emnify.lint.LintProject;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
@@ -39,8 +38,7 @@ public class ClassDiagram implements Supplier<String> {
             "/home/danilo/Workspace/AkkaKVStore/kvcluster/kvcluster-common/src/main" //,
             //"/home/danilo/Workspace/AkkaKVStore/kvcluster/kvcluster-core/src/main"
         );
-
-        LintProject project = new LintProject(jars, rootFolders);
+        LintProject project = new LintProject(null);
 
         Stream<CompilationUnit> cus = project
             .compilationUnits()

@@ -1,6 +1,7 @@
-package com.emnify.lint.props;
+package com.emnify.lint.akka;
 
 import com.emnify.lint.LintProject;
+import com.emnify.lint.maven.MavenProject;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Node;
@@ -9,8 +10,10 @@ import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.types.ResolvedType;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -21,7 +24,6 @@ public class FindProps {
 
     private static class PropsVisitor extends VoidVisitorAdapter<List<MethodCallExpr>> {
         private final TypeChecker checker;
-
         public PropsVisitor(LintProject project) {
             this.checker = new TypeChecker(
                 Arrays.asList("akka.actor.Props"),
@@ -32,7 +34,6 @@ public class FindProps {
         @Override
         public void visit(MethodCallExpr expr, List<MethodCallExpr> arg) {
             super.visit(expr, arg);
-
             if (expr.getNameAsString().equals("create")) {
                 try {
                     Expression scope = expr.getScope().get();
@@ -47,22 +48,15 @@ public class FindProps {
     }
 
     public static void main(String[] args) {
-        Collection<String> jars = Arrays.asList(
-            "/home/danilo/akka-actor_2.11-2.5.11.jar",
-            "/home/danilo/akka-cluster_2.11-2.5.11.jar",
-            "/home/danilo/scala-library-2.12.8.jar",
-            "/home/danilo/Workspace/AkkaKVStore/kvcluster/kvcluster-client/target/kvcluster-client-0.0.1.jar",
-            "/home/danilo/Workspace/AkkaKVStore/kvcluster/kvcluster-common/target/kvcluster-common-0.0.1.jar",
-            "/home/danilo/Workspace/AkkaKVStore/kvcluster/kvcluster-core/target/kvcluster-core-0.0.1.jar"
-        );
+        MavenProject prj = new MavenProject("/home/danilo/Workspace/" +
+            "github/AkkaKVStore/kvcluster/" +
+            "kvcluster-core/pom.xml");
 
-        Collection<String> rootFolders = Arrays.asList(
-            "/home/danilo/Workspace/AkkaKVStore/kvcluster/kvcluster-client/src/main",
-            "/home/danilo/Workspace/AkkaKVStore/kvcluster/kvcluster-common/src/main",
-            "/home/danilo/Workspace/AkkaKVStore/kvcluster/kvcluster-core/src/main"
-        );
+        prj.jarsFromDependencies().forEach( s -> {
+            System.out.println(">>>" + s);
+        });
 
-        LintProject project = new LintProject(jars, rootFolders);
+        LintProject project = new LintProject(prj);
 
         Stream<ClassOrInterfaceDeclaration> classes = project.compilationUnits()
             .map(cu -> (CompilationUnit) cu)
@@ -88,6 +82,7 @@ public class FindProps {
 
         propCreateExprs.forEach(expr -> {
             PropsCreate props = new PropsCreate(expr);
+            System.out.println(">>> " + props.arguments());
             ResolvedType type = props.actorClass();
             String typeName = type.describe();
             ClassOrInterfaceDeclaration cls = map.get(typeName);
